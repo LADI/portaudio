@@ -6,6 +6,7 @@
  * PortAudio Portable Real-Time Audio Library
  * JACK-specific extensions
  *
+ * Copyright (c) 2023 Nedko Arnaudov
  * Copyright (c) 1999-2000 Ross Bencina and Phil Burk
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -49,6 +50,51 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Stream setup flags. */
+/* While values here match the ones of JackPortFlags,
+ * relying on this fact should be last resort */
+typedef enum PaJackFlags
+{
+    /**
+     * if PaJackFlagPortIsPhysical is set, then the port corresponds
+     * to some kind of physical I/O connector.
+     */
+    PaJackFlagPortIsPhysical = 0x4,
+
+    /**
+     * PaJackFlagPortIsTerminal means:
+     *
+     *  for an input port: the data received by the port
+     *                    will not be passed on or made
+     *                     available at any other port
+     *
+     * for an output port: the data available at the port
+     *                    does not originate from any other port
+     *
+     * Audio synthesizers, I/O hardware interface clients, HDR
+     * systems are examples of clients that would set this flag for
+     * their ports.
+     */
+    PaJackFlagPortIsTerminal = 0x10,
+}
+PaJackFlags;
+
+/** @brief Jack Stream info
+ *
+ * This strutct provides means to supply additional parameters
+ * when opening stream with jack hostapi
+ */
+typedef struct PaJackStreamInfo
+{
+    unsigned long size;             /**< sizeof(PaJackStreamInfo) */
+    PaHostApiTypeId hostApiType;    /**< paJACK */
+    unsigned long version;          /**< 1 */
+
+    const char * name;              /**< Name of stream to use as jack port name base can be (NULL) */
+    unsigned long long flags;	    /**< collection of PaJackFlags */
+}
+PaJackStreamInfo;
 
 /** Set the JACK client name.
  *

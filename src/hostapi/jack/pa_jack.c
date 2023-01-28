@@ -4,6 +4,7 @@
  * Latest Version at: http://www.portaudio.com
  * JACK Implementation by Joshua Haberman
  *
+ * Copyright (c) 2023 Nedko Arnaudov
  * Copyright (c) 2004 Stefan Westerfeld <stefan@space.twc.de>
  * Copyright (c) 2004 Arve Knudsen <aknuds-1@broadpark.no>
  * Copyright (c) 2002 Joshua Haberman <joshua@haberman.com>
@@ -880,6 +881,27 @@ static void Terminate( struct PaUtilHostApiRepresentation *hostApi )
     jackErr_ = NULL;
 }
 
+static PaError IsJackStreamInfoValid(PaJackStreamInfo *si)
+{
+    if( si == NULL )
+        return paNoError;
+
+    if( si->size != sizeof(PaJackStreamInfo) )
+        return paIncompatibleHostApiSpecificStreamInfo;
+    if( si->hostApiType != paJACK )
+        return paIncompatibleHostApiSpecificStreamInfo;// paInvalidHostApi;
+    if( si->version != 1 )
+        return paIncompatibleHostApiSpecificStreamInfo;// paHostApiNotFound;
+    if( (si->flags & (PaJackFlagPortIsPhysical | PaJackFlagPortIsTerminal)) != si->flags )
+        return paInvalidFlag;
+
+    if( si->name &&
+        strlen( clientName_ ) + strlen( si->name ) >= jack_port_name_size() )
+        return paInvalidFlag;
+
+    return paNoError;
+}
+
 static PaError IsFormatSupported( struct PaUtilHostApiRepresentation *hostApi,
                                   const PaStreamParameters *inputParameters,
                                   const PaStreamParameters *outputParameters,
@@ -887,6 +909,7 @@ static PaError IsFormatSupported( struct PaUtilHostApiRepresentation *hostApi,
 {
     int inputChannelCount = 0, outputChannelCount = 0;
     PaSampleFormat inputSampleFormat, outputSampleFormat;
+    PaError result = paNoError;
 
     if( inputParameters )
     {
@@ -904,8 +927,9 @@ static PaError IsFormatSupported( struct PaUtilHostApiRepresentation *hostApi,
             return paInvalidChannelCount;
 
         /* validate inputStreamInfo */
-        if( inputParameters->hostApiSpecificStreamInfo )
-            return paIncompatibleHostApiSpecificStreamInfo; /* this implementation doesn't use custom stream info */
+        result = IsJackStreamInfoValid( inputParameters->hostApiSpecificStreamInfo );
+        if( result != paNoError )
+            return result;
     }
     else
     {
@@ -928,8 +952,9 @@ static PaError IsFormatSupported( struct PaUtilHostApiRepresentation *hostApi,
             return paInvalidChannelCount;
 
         /* validate outputStreamInfo */
-        if( outputParameters->hostApiSpecificStreamInfo )
-            return paIncompatibleHostApiSpecificStreamInfo; /* this implementation doesn't use custom stream info */
+        result = IsJackStreamInfoValid( outputParameters->hostApiSpecificStreamInfo );
+        if( result != paNoError )
+            return result;
     }
     else
     {
@@ -1169,8 +1194,9 @@ static PaError OpenStream( struct PaUtilHostApiRepresentation *hostApi,
             return paInvalidChannelCount;
 
         /* validate inputStreamInfo */
-        if( inputParameters->hostApiSpecificStreamInfo )
-            return paIncompatibleHostApiSpecificStreamInfo; /* this implementation doesn't use custom stream info */
+        result = IsJackStreamInfoValid( inputParameters->hostApiSpecificStreamInfo );
+        if( result != paNoError )
+            return result;
     }
     else
     {
@@ -1193,8 +1219,9 @@ static PaError OpenStream( struct PaUtilHostApiRepresentation *hostApi,
             return paInvalidChannelCount;
 
         /* validate outputStreamInfo */
-        if( outputParameters->hostApiSpecificStreamInfo )
-            return paIncompatibleHostApiSpecificStreamInfo; /* this implementation doesn't use custom stream info */
+        result = IsJackStreamInfoValid( outputParameters->hostApiSpecificStreamInfo );
+        if( result != paNoError )
+            return result;
     }
     else
     {
@@ -1258,7 +1285,16 @@ static PaError OpenStream( struct PaUtilHostApiRepresentation *hostApi,
     ofs = jackHostApi->inputBase;
     for( i = 0; i < inputChannelCount; i++ )
     {
-        snprintf( port_string, jack_port_name_size(), "in_%lu", ofs + i );
+        if( inputParameters->hostApiSpecificStreamInfo )
+        {
+            snprintf( port_string, jack_port_name_size(), "%s in_%lu",
+                      inputParameters->hostApiSpecificStreamInfo,
+                      ofs + i );
+        }
+        else
+        {
+            snprintf( port_string, jack_port_name_size(), "in_%lu", ofs + i );
+        }
         UNLESS( stream->local_input_ports[i] = jack_port_register(
               jackHostApi->jack_client, port_string,
               JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0 ), paInsufficientMemory );
@@ -1268,7 +1304,16 @@ static PaError OpenStream( struct PaUtilHostApiRepresentation *hostApi,
     ofs = jackHostApi->outputBase;
     for( i = 0; i < outputChannelCount; i++ )
     {
-        snprintf( port_string, jack_port_name_size(), "out_%lu", ofs + i );
+        if( outputParameters->hostApiSpecificStreamInfo )
+        {
+            snprintf( port_string, jack_port_name_size(), "%s out_%lu",
+                      outputParameters->hostApiSpecificStreamInfo,
+                      ofs + i );
+        }
+        else
+        {
+            snprintf( port_string, jack_port_name_size(), "out_%lu", ofs + i );
+        }
         UNLESS( stream->local_output_ports[i] = jack_port_register(
              jackHostApi->jack_client, port_string,
              JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0 ), paInsufficientMemory );
