@@ -1288,7 +1288,7 @@ static PaError OpenStream( struct PaUtilHostApiRepresentation *hostApi,
         if( inputParameters->hostApiSpecificStreamInfo )
         {
             snprintf( port_string, jack_port_name_size(), "%s in_%lu",
-                      inputParameters->hostApiSpecificStreamInfo,
+                      ((PaJackStreamInfo *)inputParameters->hostApiSpecificStreamInfo)->name,
                       ofs + i );
         }
         else
@@ -1307,7 +1307,7 @@ static PaError OpenStream( struct PaUtilHostApiRepresentation *hostApi,
         if( outputParameters->hostApiSpecificStreamInfo )
         {
             snprintf( port_string, jack_port_name_size(), "%s out_%lu",
-                      outputParameters->hostApiSpecificStreamInfo,
+                      ((PaJackStreamInfo *)outputParameters->hostApiSpecificStreamInfo)->name,
                       ofs + i );
         }
         else
